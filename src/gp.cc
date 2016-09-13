@@ -269,6 +269,10 @@ namespace libgp {
     }
     outfile.close();
   }
+
+  void GaussianProcess::write(const std::string filename) {
+    write(filename.c_str());
+  }
   
   CovarianceFunction & GaussianProcess::covf()
   {

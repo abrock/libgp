@@ -46,6 +46,9 @@ namespace libgp {
     
     /** Write current gp model to file. */
     void write(const char * filename);
+
+    /** Write current gp model to file. */
+    void write(const std::string filename);
     
     /** Predict target value for given input.
      *  @param x input vector
