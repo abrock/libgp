@@ -128,6 +128,19 @@ namespace libgp {
     return cf->get(x_star, x_star) - v.dot(v);	
   }
 
+  double GaussianProcess::eval(const double x[], double& var)
+  {
+    if (sampleset->empty()) return 0;
+    Eigen::Map<const Eigen::VectorXd> x_star(x, input_dim);
+    compute();
+    update_alpha();
+    update_k_star(x_star);
+    int n = sampleset->size();
+    Eigen::VectorXd v = L.topLeftCorner(n, n).triangularView<Eigen::Lower>().solve(k_star);
+    var = cf->get(x_star, x_star) - v.dot(v);
+    return k_star.dot(alpha);
+  }
+
   void GaussianProcess::compute()
   {
     // can previously computed values be used?
@@ -274,8 +287,67 @@ namespace libgp {
     int n = sampleset->size();
     const std::vector<double>& targets = sampleset->y();
     Eigen::Map<const Eigen::VectorXd> y(&targets[0], sampleset->size());
-    double det = 2 * L.diagonal().head(n).array().log().sum();
-    return -0.5*y.dot(alpha) - 0.5*det - 0.5*n*log2pi;
+    const double det = 2 * L.diagonal().head(n).array().log().sum();
+    if (!std::isfinite(det)) {
+        return -std::numeric_limits<double>::max();
+    }
+    const double result = -0.5*y.dot(alpha) - 0.5*det - 0.5*n*log2pi;
+    if (!std::isfinite(result)) {
+        return -std::numeric_limits<double>::max();
+    }
+    return result;
+  }
+
+  double GaussianProcess::cross_validation(std::vector<double>& errors, double& variance) {
+    const size_t size = sampleset->size();
+    if (size < 2) {
+        return 0;
+    }
+    errors.clear();
+    errors.reserve(size);
+    double error_sum = 0;
+    for (size_t leftout = 0; leftout < size; ++leftout) {
+      const Eigen::VectorXd test_point = sampleset->x(leftout);
+      const double test_val = sampleset->y(leftout);
+      libgp::GaussianProcess process(get_input_dim(), covf().to_string());
+      process.covf().set_loghyper(covf().get_loghyper());
+      for (size_t ii = 0; ii < size; ++ii) {
+        if (leftout != ii) {
+          process.add_pattern(sampleset->x(ii).data(), sampleset->y(ii));
+        }
+      }
+      const double prediction = process.f(test_point.data());
+      if (!std::isfinite(prediction)) {
+          variance = std::numeric_limits<double>::infinity();
+          return std::numeric_limits<double>::infinity();
+      }
+      const double error = std::abs(prediction - test_val);
+      error_sum += error;
+      errors.push_back(error);
+    }
+    double square_sum = 0;
+    const double mean_error = error_sum / size;
+    for (const double error : errors) {
+      square_sum += (error - mean_error) * (error - mean_error);
+    }
+    variance = square_sum / (size - 1);
+    return mean_error;
+  }
+
+  double GaussianProcess::cross_validation(double& variance) {
+    std::vector<double> errors;
+    return cross_validation(errors, variance);
+  }
+
+  double GaussianProcess::cross_validation(std::vector<double>& errors){
+    double variance = 0;
+    return cross_validation(errors, variance);
+  }
+
+  double GaussianProcess::cross_validation(){
+    std::vector<double> errors;
+    double variance = 0;
+    return cross_validation(errors, variance);
   }
 
   Eigen::VectorXd GaussianProcess::log_likelihood_gradient() 

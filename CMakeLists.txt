@@ -10,7 +10,7 @@ IF(NOT CMAKE_CONFIGURATION_TYPES AND NOT CMAKE_BUILD_TYPE)
    SET(CMAKE_BUILD_TYPE Release)
 ENDIF(NOT CMAKE_CONFIGURATION_TYPES AND NOT CMAKE_BUILD_TYPE)
 
-set(CMAKE_CXX_FLAGS_RELEASE "-DCLSQUARE -Wall -O2 -fPIC")
+set(CMAKE_CXX_FLAGS_RELEASE "-DCLSQUARE -Wall -g -O2 -fPIC")
 set(CMAKE_CXX_FLAGS_DEBUG "-DCLSQUARE -Wall -g -fPIC")
 
 OPTION(BUILD_TESTS "Build tests" ON)
@@ -40,7 +40,7 @@ endif()
 set(INSTALL_LIB_DIR lib${LIBSUFFIX} CACHE PATH
     "Installation directory for libraries")
 mark_as_advanced(INSTALL_LIB_DIR)
-configure_file(${CMAKE_SOURCE_DIR}/contrib/libgp.pc.in 
+configure_file(./contrib/libgp.pc.in
 	${CMAKE_BINARY_DIR}/libgp.pc @ONLY)
 
 # ----- Add example targets -----

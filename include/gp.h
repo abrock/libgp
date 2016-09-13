@@ -56,6 +56,14 @@ namespace libgp {
      *  @param x input vector
      *  @return predicted variance */
     virtual double var(const double x[]);
+
+    /**
+     * Predict both target value and variance for given input
+     * @param[in] x input vector
+     * @param[out] var predicted variance
+     * @return predicted function value
+     */
+    double eval(const double x[], double& var);
     
     /** Add input-output-pair to sample set.
      *  Add a copy of the given input-output-pair to sample set.
@@ -64,6 +72,10 @@ namespace libgp {
      */
     void add_pattern(const double x[], double y);
 
+    double cross_validation(std::vector<double>& errors, double& variance);
+    double cross_validation(double& variance);
+    double cross_validation(std::vector<double>& errors);
+    double cross_validation();
 
     bool set_y(size_t i, double y);
 

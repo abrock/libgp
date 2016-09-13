@@ -13,7 +13,7 @@ int main (int argc, char const *argv[])
 {
   int n=4000, m=1000;
   double tss = 0, error, f, y;
-  // initialize Gaussian process for 2-D input using the squared exponential 
+  // initialize Gaussian process for 2-D input using the squared exponential
   // covariance function with additive white noise.
   GaussianProcess gp(2, "CovSum ( CovSEiso, CovNoise)");
   // initialize hyper parameter vector
@@ -36,5 +36,5 @@ int main (int argc, char const *argv[])
     tss += error*error;
   }
   std::cout << "mse = " << tss/m << std::endl;
-	return EXIT_SUCCESS;
+    return EXIT_SUCCESS;
 }

@@ -6,4 +6,5 @@ SET(LIBGP_TESTS
   test_covariance_functions.cc
   test_gp_utils.cc
   test_cov_factory.cc
+  test_speed.cc
 )
