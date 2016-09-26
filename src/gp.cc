@@ -82,6 +82,9 @@ namespace libgp {
     }
     delete [] x;
   }
+
+  GaussianProcess::GaussianProcess (const std::string filename) : GaussianProcess(filename.c_str()) {
+  }
   
   GaussianProcess::GaussianProcess(const GaussianProcess& gp)
   {
@@ -183,7 +186,7 @@ namespace libgp {
     L.topLeftCorner(n, n).triangularView<Eigen::Lower>().adjoint().solveInPlace(alpha);
   }
   
-  void GaussianProcess::add_pattern(const double x[], double y)
+  bool GaussianProcess::add_pattern(const double x[], double y)
   {
     //std::cout<< L.rows() << std::endl;
 #if 0
@@ -193,7 +196,20 @@ namespace libgp {
     cached_x_star = NULL;
     return;
 #else
-    int n = sampleset->size();
+    int n = static_cast<int>(sampleset->size());
+    if (n > 0 && reject_duplicates) {
+        // Reject sample if we already have seen it
+        Eigen::VectorXd vec_x = Eigen::VectorXd::Zero(static_cast<int>(input_dim));
+        for (size_t ii = 0; ii < input_dim; ++ii) {
+            vec_x(static_cast<int>(ii)) = x[ii];
+        }
+        const double self_covariance = cf->get(vec_x, vec_x);
+        for (size_t ii = 0; ii < static_cast<size_t>(n); ++ii) {
+            if (cf->get(vec_x, sampleset->x(ii)) >= self_covariance) {
+                return false;
+            }
+        }
+    }
     sampleset->add(x, y);
     // create kernel matrix if sampleset is empty
     if (n == 0) {
@@ -218,6 +234,7 @@ namespace libgp {
       L(n,n) = sqrt(kappa - k.dot(k));
     }
     alpha_needs_update = true;
+    return true;
 #endif
   }
 
@@ -314,6 +331,7 @@ namespace libgp {
       const Eigen::VectorXd test_point = sampleset->x(leftout);
       const double test_val = sampleset->y(leftout);
       libgp::GaussianProcess process(get_input_dim(), covf().to_string());
+      process.reject_duplicates = false;
       process.covf().set_loghyper(covf().get_loghyper());
       for (size_t ii = 0; ii < size; ++ii) {
         if (leftout != ii) {

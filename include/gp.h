@@ -38,7 +38,10 @@ namespace libgp {
     
     /** Create and instance of GaussianProcess from file. */
     GaussianProcess (const char * filename);
-    
+
+    /** Create and instance of GaussianProcess from file. */
+    GaussianProcess (const std::string filename);
+
     /** Copy constructor */
     GaussianProcess (const GaussianProcess& gp);
     
@@ -73,7 +76,7 @@ namespace libgp {
      *  @param x input array
      *  @param y output value
      */
-    void add_pattern(const double x[], double y);
+    bool add_pattern(const double x[], double y);
 
     double cross_validation(std::vector<double>& errors, double& variance);
     double cross_validation(double& variance);
@@ -128,6 +131,8 @@ namespace libgp {
     virtual void compute();
     
     bool alpha_needs_update;
+
+    bool reject_duplicates = true;
 
   private:
 

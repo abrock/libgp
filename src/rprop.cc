@@ -226,7 +226,7 @@ void RProp::minimize_crossvalidation(GaussianProcess * gp, size_t n, bool verbos
           best_crossvalidation_params = current_params;
           best_params = current_params;
       }
-      if (current_crossvalidation < best_crossvalidation && std::isfinite(current_crossvalidation)) {
+      if (current_crossvalidation <= best_crossvalidation && std::isfinite(current_crossvalidation)) {
         best_crossvalidation = current_crossvalidation;
         best_crossvalidation_params = current_params;
         best_params = current_params;
@@ -254,7 +254,7 @@ void RProp::minimize_crossvalidation(GaussianProcess * gp, size_t n, bool verbos
         }
         params = best_params = gp->covf().get_loghyper();
         const double current_crossvalidation = gp->cross_validation();
-        if (current_crossvalidation < best_crossvalidation && std::isfinite(current_crossvalidation)) {
+        if (current_crossvalidation <= best_crossvalidation && std::isfinite(current_crossvalidation)) {
             best_crossvalidation = current_crossvalidation;
             best_crossvalidation_params = params;
         }
