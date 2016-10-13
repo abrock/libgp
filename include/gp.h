@@ -101,7 +101,34 @@ namespace libgp {
     
     Eigen::VectorXd log_likelihood_gradient();
 
+    /**
+     * @brief set_scales Sets the factors by which each of the input parameters is scaled before processing.
+     * @param new_scales Vector of factors
+     */
+    void set_scales(const std::vector<double>& new_scales);
+    void set_scales(const Eigen::VectorXd& new_scales);
+
+    /**
+     * @brief set_target_center Sets the center value for the target values.
+     * The center value is subtracted from the y values in the training samples before training
+     * and added to the result given by the Gaussian process before returning it.
+     * @param new_center New center value.
+     */
+    void set_target_center(const double new_center);
+
   protected:
+
+    bool use_scaling = false;
+
+    /**
+     * @brief scales Scales for preprocessing the data.
+     */
+    Eigen::VectorXd scales;
+
+    /**
+     * @brief y_center Center value of the target, is removed
+     */
+    double y_center = 0;
     
     /** The covariance function of this Gaussian process. */
     CovarianceFunction * cf;

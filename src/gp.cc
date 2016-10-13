@@ -109,20 +109,34 @@ namespace libgp {
     if (cf != NULL) delete cf;
   }  
   
-  double GaussianProcess::f(const double x[])
+  double GaussianProcess::f(const double _x[])
   {
     if (sampleset->empty()) return 0;
-    Eigen::Map<const Eigen::VectorXd> x_star(x, input_dim);
+    std::vector<double> x(_x, _x+input_dim);
+    if (use_scaling) {
+        for (size_t ii = 0; ii < input_dim; ++ii) {
+            x[ii] = _x[ii] / scales[static_cast<int>(ii)];
+        }
+    }
+    Eigen::Map<const Eigen::VectorXd> x_star(x.data(), input_dim);
+
     compute();
     update_alpha();
     update_k_star(x_star);
-    return k_star.dot(alpha);    
+    return k_star.dot(alpha) + y_center;
   }
   
-  double GaussianProcess::var(const double x[])
+  double GaussianProcess::var(const double _x[])
   {
     if (sampleset->empty()) return 0;
-    Eigen::Map<const Eigen::VectorXd> x_star(x, input_dim);
+    std::vector<double> x(_x, _x+input_dim);
+    if (use_scaling) {
+        for (size_t ii = 0; ii < input_dim; ++ii) {
+            x[ii] = _x[ii] / scales[static_cast<int>(ii)];
+        }
+    }
+    Eigen::Map<const Eigen::VectorXd> x_star(x.data(), input_dim);
+
     compute();
     update_alpha();
     update_k_star(x_star);
@@ -131,17 +145,23 @@ namespace libgp {
     return cf->get(x_star, x_star) - v.dot(v);	
   }
 
-  double GaussianProcess::eval(const double x[], double& var)
+  double GaussianProcess::eval(const double _x[], double& var)
   {
     if (sampleset->empty()) return 0;
-    Eigen::Map<const Eigen::VectorXd> x_star(x, input_dim);
+    std::vector<double> x(_x, _x+input_dim);
+    if (use_scaling) {
+        for (size_t ii = 0; ii < input_dim; ++ii) {
+            x[ii] = _x[ii] / scales[static_cast<int>(ii)];
+        }
+    }
+    Eigen::Map<const Eigen::VectorXd> x_star(x.data(), input_dim);
     compute();
     update_alpha();
     update_k_star(x_star);
     int n = sampleset->size();
     Eigen::VectorXd v = L.topLeftCorner(n, n).triangularView<Eigen::Lower>().solve(k_star);
     var = cf->get(x_star, x_star) - v.dot(v);
-    return k_star.dot(alpha);
+    return k_star.dot(alpha) + y_center;
   }
 
   void GaussianProcess::compute()
@@ -186,9 +206,17 @@ namespace libgp {
     L.topLeftCorner(n, n).triangularView<Eigen::Lower>().adjoint().solveInPlace(alpha);
   }
   
-  bool GaussianProcess::add_pattern(const double x[], double y)
+  bool GaussianProcess::add_pattern(const double _x[], double y)
   {
     //std::cout<< L.rows() << std::endl;
+      y -= y_center;
+      std::vector<double> scaled_x(input_dim);
+      if (use_scaling) {
+          for (size_t ii = 0; ii < input_dim; ++ii) {
+              scaled_x[ii] = _x[ii] / scales[static_cast<int>(ii)];
+          }
+      }
+      const double* x = scaled_x.data();
 #if 0
     sampleset->add(x, y);
     cf->loghyper_changed = true;
@@ -240,7 +268,7 @@ namespace libgp {
 
   bool GaussianProcess::set_y(size_t i, double y) 
   {
-    if(sampleset->set_y(i,y)) {
+    if(sampleset->set_y(i,y - y_center)) {
       alpha_needs_update = true;
       return 1;
     }
@@ -305,7 +333,7 @@ namespace libgp {
   {
     compute();
     update_alpha();
-    int n = sampleset->size();
+    int n = static_cast<int>(sampleset->size());
     const std::vector<double>& targets = sampleset->y();
     Eigen::Map<const Eigen::VectorXd> y(&targets[0], sampleset->size());
     const double det = 2 * L.diagonal().head(n).array().log().sum();
@@ -332,7 +360,14 @@ namespace libgp {
       const double test_val = sampleset->y(leftout);
       libgp::GaussianProcess process(get_input_dim(), covf().to_string());
       process.reject_duplicates = false;
+      if (use_scaling) {
+          process.set_scales(scales);
+      }
+      process.set_target_center(y_center);
       process.covf().set_loghyper(covf().get_loghyper());
+      if (use_scaling) {
+
+      }
       for (size_t ii = 0; ii < size; ++ii) {
         if (leftout != ii) {
           process.add_pattern(sampleset->x(ii).data(), sampleset->y(ii));
@@ -397,4 +432,57 @@ namespace libgp {
 
     return grad;
   }
+
+
+  void GaussianProcess::set_scales(const std::vector<double>& new_scales) {
+      if (get_sampleset_size() > 0) {
+          throw std::runtime_error("Scales must not be changes after process has been trained");
+      }
+      const int input_dim = static_cast<int>(covf().get_input_dim());
+      scales = Eigen::VectorXd::Zero(input_dim);
+      if (static_cast<size_t>(input_dim) > new_scales.size()) {
+          throw std::runtime_error("Number of entries in new_scales vector is too low");
+      }
+      for (int ii = 0; ii < input_dim; ++ii) {
+          scales[ii] = new_scales[static_cast<size_t>(ii)];
+          if (!std::isfinite(scales[ii])) {
+              throw std::runtime_error("New scale is not finite");
+          }
+          if (0 >= scales[ii]) {
+              throw std::runtime_error("New scale is smaller or equal zero");
+          }
+      }
+      use_scaling = true;
+  }
+
+  void GaussianProcess::set_scales(const Eigen::VectorXd& new_scales) {
+      if (get_sampleset_size() > 0) {
+          throw std::runtime_error("Scales must not be changes after process has been trained");
+      }
+      const int input_dim = static_cast<int>(covf().get_input_dim());
+      scales = Eigen::VectorXd::Zero(input_dim);
+      if (input_dim > new_scales.size()) {
+          throw std::runtime_error("Number of entries in new_scales vector is too low");
+      }
+      for (int ii = 0; ii < input_dim; ++ii) {
+          scales[ii] = new_scales[ii];
+          if (!std::isfinite(scales[ii])) {
+              throw std::runtime_error("New scale is not finite");
+          }
+          if (0 >= scales[ii]) {
+              throw std::runtime_error("New scale is smaller or equal zero");
+          }
+      }
+      use_scaling = true;
+  }
+
+  void GaussianProcess::set_target_center(const double new_center) {
+      if (get_sampleset_size() > 0) {
+          throw std::runtime_error("Center value must not be changes after process has been trained");
+      }
+      y_center = new_center;
+  }
 }
+
+
+

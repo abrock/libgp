@@ -203,6 +203,71 @@ void RProp::maximize(GaussianProcess * gp, size_t n, bool verbose, bool print_pa
   gp->covf().set_loghyper(best_params);
 }
 
+bool RProp::optimize(GaussianProcess * gp, size_t n, bool verbose, bool print_params) {
+    std::default_random_engine generator;
+    std::uniform_real_distribution<double> uniform(-1,1);
+    const Eigen::VectorXd original_params = gp->covf().get_loghyper();
+    const int param_dim = gp->covf().get_param_dim();
+    Eigen::VectorXd current_params = Eigen::VectorXd::Zero(param_dim);
+    Eigen::VectorXd best_params = Eigen::VectorXd::Zero(param_dim);
+
+    // Restart with zero parameters.
+    gp->covf().set_loghyper(current_params);
+    double best_lik = gp->log_likelihood();
+    for (double entry = -4; entry < 4; entry += .5) {
+        { // Test vectors where every entry is equal for -4, -3.5, ... ,3.5
+            for (int ii = 0; ii < param_dim; ++ii) {
+                current_params(ii) = entry;
+            }
+            gp->covf().set_loghyper(current_params);
+            const double current_lik = gp->log_likelihood();
+            if (!std::isfinite(best_lik) && std::isfinite(current_lik)) {
+                best_lik = current_lik;
+                best_params = current_params;
+            }
+            if (current_lik > best_lik) {
+                best_lik = current_lik;
+                best_params = current_params;
+            }
+        }
+        { // Test uniform distributed entries with values in [-1,1]:
+            for (int ii = 0; ii < param_dim; ++ii) {
+                current_params(ii) = uniform(generator);
+            }
+            gp->covf().set_loghyper(current_params);
+            const double current_lik = gp->log_likelihood();
+            if (!std::isfinite(best_lik) && std::isfinite(current_lik)) {
+                best_lik = current_lik;
+                best_params = current_params;
+            }
+            if (current_lik > best_lik) {
+                best_lik = current_lik;
+                best_params = current_params;
+            }
+        }
+    }
+    gp->covf().set_loghyper(best_params);
+    maximize(gp, n, verbose, print_params);
+    Eigen::VectorXd best_restarted_params = gp->covf().get_loghyper();
+    const double best_restarted_lik = gp->log_likelihood();
+
+    gp->covf().set_loghyper(original_params);
+    maximize(gp, n, verbose, print_params);
+    Eigen::VectorXd best_warmstart_params = gp->covf().get_loghyper();
+    const double best_warmstart_lik = gp->log_likelihood();
+
+    //std::cerr << gp->get_sampleset_size() << " samples ";
+    if (best_restarted_lik > best_warmstart_lik) {
+        gp->covf().set_loghyper(best_restarted_params);
+        return true;
+        //std::cerr << "###restart beat warmstart with " << best_restarted_lik << " : " << best_warmstart_lik << std::endl;
+    }
+    else {
+        //std::cerr << "warmstart beat restart with " << best_restarted_lik << " : " << best_warmstart_lik << std::endl;
+    }
+    return false;
+}
+
 void RProp::minimize_crossvalidation(GaussianProcess * gp, size_t n, bool verbose, bool print_params)
 {
   const int param_dim = gp->covf().get_param_dim();
