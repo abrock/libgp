@@ -69,8 +69,15 @@ namespace libgp {
     if (it == registry.end()) {
       std::cerr << "fatal error while parsing covariance function: " << func << " not found" << std::endl;
       exit(0);
-    } 
-    covf = registry.find(func)->second();
+    }
+    std::map<std::string , CovFactory::create_func_def>::iterator covf_it
+            = registry.find(func);
+    if (covf_it != registry.end()) {
+        covf = covf_it->second();
+    }
+    else {
+        throw std::runtime_error("Covariance function not found in registry");
+    }
     if (left == right) {
       bool res = covf->init(input_dim);
       assert(res);

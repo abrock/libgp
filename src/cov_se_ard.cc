@@ -17,12 +17,14 @@ namespace libgp
     input_dim = n;
     param_dim = n+1;
     ell.resize(input_dim);
+    ell.setZero();
     loghyper.resize(param_dim);
+    loghyper.setZero();
     return true;
   }
   
   double CovSEard::get(const Eigen::VectorXd &x1, const Eigen::VectorXd &x2)
-  {  
+  {
     double z = (x1-x2).cwiseQuotient(ell).squaredNorm();
     return sf2*exp(-0.5*z);
   }

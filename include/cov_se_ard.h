@@ -32,7 +32,7 @@ namespace libgp
     virtual std::string to_string();
   private:
     Eigen::VectorXd ell;
-    double sf2;
+    double sf2 = 0;
   };
   
 }

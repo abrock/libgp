@@ -12,6 +12,8 @@
 #include <iomanip>
 #include <ctime>
 
+#include <boost/math/distributions/normal.hpp>
+
 namespace libgp {
   
   const double log2pi = log(2*M_PI);
@@ -94,6 +96,7 @@ namespace libgp {
     k_star = gp.k_star;
     alpha_needs_update = gp.alpha_needs_update;
     L = gp.L;
+    lowest_y = gp.lowest_y;
     
     // copy covariance function
     CovFactory factory;
@@ -107,11 +110,17 @@ namespace libgp {
     // free memory
     if (sampleset != NULL) delete sampleset;
     if (cf != NULL) delete cf;
-  }  
+  }
+
+  const SampleSet &GaussianProcess::get_sample_set() const
+  {
+      return *sampleset;
+  }
   
   double GaussianProcess::f(const double _x[])
   {
     if (sampleset->empty()) return 0;
+    call_counter++;
     std::vector<double> x(_x, _x+input_dim);
     if (use_scaling) {
         for (size_t ii = 0; ii < input_dim; ++ii) {
@@ -129,6 +138,7 @@ namespace libgp {
   double GaussianProcess::var(const double _x[])
   {
     if (sampleset->empty()) return 0;
+    call_counter++;
     std::vector<double> x(_x, _x+input_dim);
     if (use_scaling) {
         for (size_t ii = 0; ii < input_dim; ++ii) {
@@ -148,6 +158,7 @@ namespace libgp {
   double GaussianProcess::eval(const double _x[], double& var)
   {
     if (sampleset->empty()) return 0;
+    call_counter++;
     std::vector<double> x(_x, _x+input_dim);
     if (use_scaling) {
         for (size_t ii = 0; ii < input_dim; ++ii) {
@@ -162,6 +173,65 @@ namespace libgp {
     Eigen::VectorXd v = L.topLeftCorner(n, n).triangularView<Eigen::Lower>().solve(k_star);
     var = cf->get(x_star, x_star) - v.dot(v);
     return k_star.dot(alpha) + y_center;
+  }
+
+  double GaussianProcess::eval(const std::vector<double>& x, double& var)
+  {
+    if (x.size() < input_dim) {
+      throw std::runtime_error(
+                    std::string("Size of input vector (") + std::to_string(x.size())
+                    + ") too small for current input dim (" + std::to_string(input_dim) + ")");
+    }
+    return eval(x.data(), var);
+  }
+
+  double GaussianProcess::expectedImprovement(
+          const double prediction,
+          const double variance,
+          const double best_known) {
+      if (variance <= 0 || !std::isfinite(variance) || !std::isfinite(prediction)) {
+          return 0;
+      }
+      const double stddev = std::sqrt(std::abs(variance));
+      if (stddev <= 0 || !std::isfinite(stddev)) {
+          return 0;
+      }
+      const double gamma = (best_known - prediction) / stddev;
+      if (!std::isfinite(gamma)) {
+          return 0;
+      }
+
+      auto normal = boost::math::normal_distribution<double>();
+
+      const double cdf = boost::math::cdf(normal, gamma);
+      const double pdf = boost::math::pdf(normal, gamma);
+
+      // check http://www.ressources-actuarielles.net/EXT/ISFA/1226.nsf/0/f84f7ac703bf5862c12576d8002f5259/$FILE/Jones98.pdf
+      // equation 15 and text before
+      return (best_known - prediction) * cdf + stddev * pdf;
+  }
+
+  double GaussianProcess::expectedImprovement(const std::vector<double>& x) {
+      double var = 0, f = 0;
+      f = eval(x, var);
+      return expectedImprovement(f, var, lowest_y);
+  }
+
+  double GaussianProcess::expectedImprovement(const double x[]) {
+      double var = 0, f = 0;
+      f = eval(x, var);
+      return expectedImprovement(f, var, lowest_y);
+  }
+
+  Result GaussianProcess::getResult(const std::vector<double> &x) {
+      return getResult(x.data());
+  }
+
+  Result GaussianProcess::getResult(const double x[]) {
+      double var = 0;
+      const double f = eval(x, var);
+      const double expected_improvement = expectedImprovement(f, var, lowest_y);
+      return Result(f, var, expected_improvement);
   }
 
   void GaussianProcess::compute()
@@ -186,8 +256,9 @@ namespace libgp {
   
   void GaussianProcess::update_k_star(const Eigen::VectorXd &x_star)
   {
-    k_star.resize(sampleset->size());
-    for(size_t i = 0; i < sampleset->size(); ++i) {
+    //k_star.resize(sampleset->size());
+    const size_t size = sampleset->size();
+    for(size_t i = 0; i < size; ++i) {
       k_star(i) = cf->get(x_star, sampleset->x(i));
     }
   }
@@ -208,9 +279,13 @@ namespace libgp {
   
   bool GaussianProcess::add_pattern(const double _x[], double y)
   {
+      if (0 == get_sampleset_size()) {
+          lowest_y = y;
+      }
+      lowest_y = std::min(y, lowest_y);
     //std::cout<< L.rows() << std::endl;
       y -= y_center;
-      std::vector<double> scaled_x(input_dim);
+      std::vector<double> scaled_x(_x, _x+input_dim);
       if (use_scaling) {
           for (size_t ii = 0; ii < input_dim; ++ii) {
               scaled_x[ii] = _x[ii] / scales[static_cast<int>(ii)];
@@ -239,6 +314,7 @@ namespace libgp {
         }
     }
     sampleset->add(x, y);
+    k_star.resize(sampleset->size());
     // create kernel matrix if sampleset is empty
     if (n == 0) {
       L(0,0) = sqrt(cf->get(sampleset->x(0), sampleset->x(0)));

@@ -34,6 +34,13 @@ namespace libgp {
     /** Get input vector at index k. */
     const Eigen::VectorXd & x (size_t k);
 
+    /**
+     * @brief Get the j-th entry of the input value at index k
+     * @param k
+     * @return
+     */
+    double getInputValue(size_t k, size_t j) const;
+
     /** Get target value at index k. */
     double y (size_t k);
 

@@ -38,10 +38,11 @@ bool RProp::make_feasible(GaussianProcess * gp, const size_t max_it){
     const Eigen::VectorXd orig_params = gp->covf().get_loghyper();
 
     const int param_dim = gp->covf().get_param_dim();
-    std::vector<double> test_x (param_dim);
+    std::vector<double> test_x (gp->get_input_dim(), 0.0);
 
     double scale = 1.0;
     std::default_random_engine generator;
+    generator.seed(std::random_device()());
     std::uniform_real_distribution<double> uniform(-1,1);
 
     for (size_t ii = 0; ii < max_it; ++ii) {

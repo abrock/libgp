@@ -55,7 +55,13 @@ namespace libgp {
   
   const Eigen::VectorXd & SampleSet::x(size_t k)
   {
-    return *inputs.at(k);
+      return *inputs.at(k);
+  }
+
+  double SampleSet::getInputValue(size_t k, size_t j) const
+  {
+      Eigen::VectorXd * in = inputs.at(k);
+      return (*in)(j);
   }
 
   double SampleSet::y(size_t k)

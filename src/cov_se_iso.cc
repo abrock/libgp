@@ -8,7 +8,7 @@
 namespace libgp
 {
   
-  CovSEiso::CovSEiso() {}
+  CovSEiso::CovSEiso() : ell(0), sf2(0) {}
   
   CovSEiso::~CovSEiso() {}
   

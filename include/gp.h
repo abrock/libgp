@@ -22,6 +22,13 @@
 #include "sampleset.h"
 
 namespace libgp {
+
+  struct Result {
+    double f;
+    double var;
+    double expected_improvement;
+    Result(double const _f = 0, double const _var = 1, double const _ex = 0) : f(_f), var(_var), expected_improvement(_ex) {}
+  };
   
   /** Gaussian process regression.
    *  @author Manuel Blum */
@@ -46,6 +53,10 @@ namespace libgp {
     GaussianProcess (const GaussianProcess& gp);
     
     virtual ~GaussianProcess ();
+
+    const SampleSet& get_sample_set() const;
+
+    size_t get_call_counter() {return call_counter;}
     
     /** Write current gp model to file. */
     void write(const char * filename);
@@ -70,7 +81,54 @@ namespace libgp {
      * @return predicted function value
      */
     double eval(const double x[], double& var);
-    
+
+    /**
+     * Predict both target value and variance for given input
+     * @param[in] x input vector
+     * @param[out] var predicted variance
+     * @return predicted function value
+     */
+    double eval(const std::vector<double>& x, double& var);
+
+    /**
+     * @brief Calculate the expected improvement of a target function modelled by the GP
+     * @param prediction Prediction of the gp (f())
+     * @param variance Variance of the GP (var())
+     * @param best_known Best known value of the target function (lower is better)
+     * @return
+     */
+    double expectedImprovement(const double prediction,
+                               const double variance,
+                               const double best_known);
+
+    /**
+     * @brief Calculate the expected improvement of a target function modelled by the GP
+     * @param x Parameter vector.
+     * @return
+     */
+    double expectedImprovement(const std::vector<double>& x);
+
+    /**
+     * @brief Calculate the expected improvement of a target function modelled by the GP
+     * @param x Parameter vector.
+     * @return
+     */
+    double expectedImprovement(const double x[]);
+
+    /**
+     * @brief getResult calculates prediction, variance and expected improvement and returns all three as object of type "Result"
+     * @param x
+     * @return
+     */
+    Result getResult(const std::vector<double>& x);
+
+    /**
+     * @brief getResult calculates prediction, variance and expected improvement and returns all three as object of type "Result"
+     * @param x
+     * @return
+     */
+    Result getResult(const double x[]);
+
     /** Add input-output-pair to sample set.
      *  Add a copy of the given input-output-pair to sample set.
      *  @param x input array
@@ -160,6 +218,13 @@ namespace libgp {
     bool alpha_needs_update;
 
     bool reject_duplicates = true;
+
+    /**
+     * @brief call_counter Number of times eval(), f() or var() has been called since initialisation.
+     */
+    size_t call_counter = 0;
+
+    double lowest_y;
 
   private:
 
