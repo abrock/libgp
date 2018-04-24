@@ -7,6 +7,7 @@
 
 #include "gp.h"
 #include <Eigen/Core>
+#include <random>
 
 namespace libgp {
 
@@ -21,6 +22,7 @@ public:
   bool optimize(GaussianProcess * gp, size_t n=100, bool verbose=true, bool print_params = false);
   void minimize_crossvalidation(GaussianProcess * gp, size_t n=100, bool verbose=true, bool print_params = false);
 private:
+  std::mt19937_64 generator;
   double Delta0;
   double Deltamin;
   double Deltamax;
@@ -29,7 +31,7 @@ private:
   double eps_stop;
   double min_stepsize_factor;
 
-  bool isfinite(const Eigen::VectorXd& x);
+  bool is_finite(const Eigen::VectorXd& x);
   bool make_feasible(GaussianProcess * gp, const size_t max_it = 100);
   bool make_crossvalidation_feasible(GaussianProcess * gp, const size_t max_it = 100);
 };

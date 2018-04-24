@@ -98,6 +98,34 @@ namespace libgp {
   
   bool SampleSet::empty ()
   {
-    return n==0;
+      return n==0;
+  }
+
+  double SampleSet::minL1DistanceToKnown(const std::vector<double> &x) const
+  {
+      if (x.size() != input_dim) {
+          throw std::runtime_error(std::string("Size of vector (") + std::to_string(x.size()) + ") doesn't match input_dim ("
+                                   + std::to_string(input_dim) + ") in method SampleSet::minL1DistanceToKnown.");
+      }
+      //const Eigen::VectorXd _x(x.data(), input_dim);
+      //Eigen::Map<Eigen::VectorXd> _x(x.data(), input_dim);
+      //const Eigen::VectorXd _x = Eigen::Map<Eigen::VectorXd, Eigen::Unaligned>(x.data(), input_dim);
+      Eigen::VectorXd _x(input_dim);
+      for (size_t ii = 0; ii < input_dim; ++ii) {
+          _x(ii) = x[ii];
+      }
+      return minL1DistanceToKnown(_x);
+  }
+
+  double SampleSet::minL1DistanceToKnown(const Eigen::VectorXd &x) const
+  {
+      double result = std::numeric_limits<double>::max();
+      for (Eigen::VectorXd * const sample : inputs) {
+          double const norm = (x - (*sample)).lpNorm<1>();
+          if (norm < result) {
+              result = norm;
+          }
+      }
+      return result;
   }
 }

@@ -185,6 +185,10 @@ namespace libgp {
     return eval(x.data(), var);
   }
 
+  double GaussianProcess::minL1DistanceToKnown(const std::vector<double> &x) {
+      return sampleset->minL1DistanceToKnown(x);
+  }
+
   double GaussianProcess::expectedImprovement(
           const double prediction,
           const double variance,

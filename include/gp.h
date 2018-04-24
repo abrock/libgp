@@ -90,6 +90,8 @@ namespace libgp {
      */
     double eval(const std::vector<double>& x, double& var);
 
+    double minL1DistanceToKnown(const std::vector<double>& x);
+
     /**
      * @brief Calculate the expected improvement of a target function modelled by the GP
      * @param prediction Prediction of the gp (f())

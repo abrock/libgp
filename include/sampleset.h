@@ -59,6 +59,9 @@ namespace libgp {
     /** Check if sample set is empty. */
     bool empty ();
 
+    double minL1DistanceToKnown(const std::vector<double> &x) const;
+    double minL1DistanceToKnown(const Eigen::VectorXd &x) const;
+
 
   private:
 

@@ -22,9 +22,10 @@ void RProp::init(double eps_stop, double Delta0, double Deltamin, double Deltama
   this->etaplus  = etaplus;
   this->eps_stop = eps_stop;
   this->min_stepsize_factor = min_stepsize_factor;
+  generator.seed(std::random_device()());
 }
 
-bool RProp::isfinite(const Eigen::VectorXd& x) {
+bool RProp::is_finite(const Eigen::VectorXd& x) {
   for (int ii = 0; ii < x.size(); ++ii) {
     if (!std::isfinite(x(ii))) {
       return false;
@@ -41,8 +42,7 @@ bool RProp::make_feasible(GaussianProcess * gp, const size_t max_it){
     std::vector<double> test_x (gp->get_input_dim(), 0.0);
 
     double scale = 1.0;
-    std::default_random_engine generator;
-    generator.seed(std::random_device()());
+
     std::uniform_real_distribution<double> uniform(-1,1);
 
     for (size_t ii = 0; ii < max_it; ++ii) {
@@ -159,7 +159,7 @@ void RProp::maximize(GaussianProcess * gp, size_t n, bool verbose, bool print_pa
 
   for (size_t i=0; i<n; ++i) {
     Eigen::VectorXd grad = -stepsize_factor * gp->log_likelihood_gradient();
-    if (!isfinite(grad)) {
+    if (!is_finite(grad)) {
         make_feasible(gp);
         params = best_params = gp->covf().get_loghyper();
         best = gp->log_likelihood();
@@ -305,7 +305,7 @@ void RProp::minimize_crossvalidation(GaussianProcess * gp, size_t n, bool verbos
 
   for (size_t i=0; i<n; ++i) {
     Eigen::VectorXd grad = -stepsize_factor * gp->log_likelihood_gradient();
-    if (!isfinite(grad)) {
+    if (!is_finite(grad)) {
         if (verbose) {
             std::cout << "### Process not feasible, adjusting...";
         }
