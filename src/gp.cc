@@ -172,6 +172,9 @@ namespace libgp {
     int n = sampleset->size();
     Eigen::VectorXd v = L.topLeftCorner(n, n).triangularView<Eigen::Lower>().solve(k_star);
     var = cf->get(x_star, x_star) - v.dot(v);
+    if (var < 0) {
+        var = 0;
+    }
     return k_star.dot(alpha) + y_center;
   }
 
@@ -212,7 +215,8 @@ namespace libgp {
 
       // check http://www.ressources-actuarielles.net/EXT/ISFA/1226.nsf/0/f84f7ac703bf5862c12576d8002f5259/$FILE/Jones98.pdf
       // equation 15 and text before
-      return (best_known - prediction) * cdf + stddev * pdf;
+      const double result = (best_known - prediction) * cdf + stddev * pdf;
+      return result < 0 ? 0 : result;
   }
 
   double GaussianProcess::expectedImprovement(const std::vector<double>& x) {
